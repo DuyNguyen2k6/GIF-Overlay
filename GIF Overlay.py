@@ -12,7 +12,11 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QMovie, QIcon
 from PyQt5.QtCore import Qt, QSize
 
-CONFIG_FILE = "last_gif_path.txt"
+# Thư mục lưu cấu hình trong %APPDATA%
+CONFIG_DIR = Path(os.getenv('APPDATA')) / "GIF Overlay"
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+CONFIG_FILE = CONFIG_DIR / "last_gif_path.txt"
+
 GIF_SAVE_DIR = Path.home() / "Documents" / "GIF-save"
 
 class GifListItemWidget(QWidget):
@@ -101,7 +105,6 @@ class GifOnTop(QWidget):
 
     def __init__(self):
         super().__init__()
-        # Ban đầu không thêm Qt.Tool để có icon taskbar
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
 
@@ -126,12 +129,15 @@ class GifOnTop(QWidget):
         if not self.current_gif_path:
             self.show_menu_at_center()
 
+        # Xác định thư mục chứa .exe hoặc source (hỗ trợ khi đóng gói PyInstaller)
+        base_dir = Path(getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))))
+        icon_path = base_dir / "app_icon.ico"
+
         self.tray_icon = QSystemTrayIcon(self)
-        icon_path = "icon.png"
-        if not os.path.exists(icon_path):
-            self.tray_icon.setIcon(self.style().standardIcon(QApplication.style().SP_ComputerIcon))
+        if icon_path.exists():
+            self.tray_icon.setIcon(QIcon(str(icon_path)))
         else:
-            self.tray_icon.setIcon(QIcon(icon_path))
+            self.tray_icon.setIcon(self.style().standardIcon(QApplication.style().SP_ComputerIcon))
 
         tray_menu = QMenu()
         show_action = QAction("Hiện cửa sổ", self)
@@ -186,7 +192,6 @@ class GifOnTop(QWidget):
         elif action == self.action_close_quit:
             QApplication.quit()
         elif action == self.action_close_minimize:
-            # Thêm Qt.Tool flag để ẩn icon taskbar nhưng vẫn hiện cửa sổ
             flags = self.windowFlags() | Qt.Tool
             self.setWindowFlags(flags)
             self.show()
@@ -236,7 +241,7 @@ class GifOnTop(QWidget):
             print(f"Error saving last gif path: {e}")
 
     def load_last_gif(self):
-        if os.path.exists(CONFIG_FILE):
+        if CONFIG_FILE.exists():
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     path = f.read().strip()
@@ -354,7 +359,6 @@ class GifOnTop(QWidget):
         dialog.exec_()
 
     def show_normal(self):
-        # Bỏ flag Qt.Tool để hiện icon taskbar lại
         flags = self.windowFlags()
         flags = flags & (~Qt.Tool)
         self.setWindowFlags(flags)
@@ -374,7 +378,6 @@ class GifOnTop(QWidget):
             event.accept()
         else:
             event.ignore()
-            # Ẩn cửa sổ, thêm flag Qt.Tool để ẩn icon taskbar
             flags = self.windowFlags() | Qt.Tool
             self.setWindowFlags(flags)
             self.show()
@@ -390,7 +393,6 @@ class GifOnTop(QWidget):
             if self.isVisible():
                 self.hide()
             else:
-                # Hiện cửa sổ, bỏ flag Qt.Tool để icon taskbar hiện lại
                 flags = self.windowFlags()
                 flags = flags & (~Qt.Tool)
                 self.setWindowFlags(flags)
