@@ -6,103 +6,20 @@ from typing import Optional
 from PyQt5.QtWidgets import (
     QApplication, QLabel, QFileDialog, QWidget,
     QVBoxLayout, QMenu, QMessageBox, QInputDialog,
-    QListWidget, QListWidgetItem, QDialog, QPushButton, QHBoxLayout,
+    QDialog, QPushButton,
     QSlider, QGridLayout, QSystemTrayIcon, QAction
 )
 from PyQt5.QtGui import QMovie, QIcon
 from PyQt5.QtCore import Qt, QSize
 
-# Thư mục lưu cấu hình trong %APPDATA%
 CONFIG_DIR = Path(os.getenv('APPDATA')) / "GIF Overlay"
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 CONFIG_FILE = CONFIG_DIR / "last_gif_path.txt"
+CONFIG_SETTINGS_FILE = CONFIG_DIR / "settings.txt"
 
 GIF_SAVE_DIR = Path.home() / "Documents" / "GIF-save"
 
-class GifListItemWidget(QWidget):
-    def __init__(self, file_path: Path, parent_dialog: QDialog):
-        super().__init__()
-        self.file_path = file_path
-        self.parent_dialog = parent_dialog
-
-        layout = QHBoxLayout()
-        layout.setContentsMargins(5, 0, 5, 0)
-
-        self.label = QLabel(file_path.name)
-        layout.addWidget(self.label)
-
-        layout.addStretch()
-
-        self.rename_btn = QPushButton("Đổi tên")
-        self.rename_btn.setFixedSize(70, 25)
-        self.rename_btn.clicked.connect(self.rename_file)
-        layout.addWidget(self.rename_btn)
-
-        self.delete_btn = QPushButton("Xóa")
-        self.delete_btn.setFixedSize(50, 25)
-        self.delete_btn.clicked.connect(self.delete_file)
-        layout.addWidget(self.delete_btn)
-
-        self.setLayout(layout)
-
-    def rename_file(self):
-        base_name = self.file_path.stem
-        new_name, ok = QInputDialog.getText(
-            self, "Đổi tên file", "Nhập tên file mới (không cần đuôi .gif):", text=base_name
-        )
-        if not (ok and new_name.strip()):
-            return
-        if not new_name.lower().endswith(".gif"):
-            new_name += ".gif"
-        new_path = self.file_path.with_name(new_name)
-        if new_path.exists():
-            QMessageBox.warning(self, "Đổi tên file", "File đã tồn tại với tên này!")
-            return
-        try:
-            self.file_path.rename(new_path)
-            self.file_path = new_path
-            self.label.setText(new_path.name)
-            self.parent_dialog.load_gif_list()
-        except Exception as e:
-            QMessageBox.warning(self, "Lỗi", f"Không thể đổi tên file:\n{e}")
-
-    def delete_file(self):
-        try:
-            os.remove(self.file_path)
-            self.parent_dialog.load_gif_list()
-        except Exception as e:
-            QMessageBox.warning(self, "Lỗi", f"Không thể xóa file:\n{e}")
-
-class GifManagerDialog(QDialog):
-    def __init__(self, parent: Optional[QWidget] = None):
-        super().__init__(parent)
-        self.setWindowTitle("Quản lý ảnh GIF đã lưu")
-        self.resize(450, 300)
-
-        layout = QVBoxLayout(self)
-        self.list_widget = QListWidget()
-        layout.addWidget(self.list_widget)
-
-        close_btn = QPushButton("Đóng")
-        close_btn.clicked.connect(self.close)
-        layout.addWidget(close_btn)
-
-        self.load_gif_list()
-
-    def load_gif_list(self):
-        self.list_widget.clear()
-        if not GIF_SAVE_DIR.exists():
-            return
-        for gif_path in sorted(GIF_SAVE_DIR.glob("*.gif")):
-            item = QListWidgetItem()
-            widget = GifListItemWidget(gif_path, self)
-            item.setSizeHint(widget.sizeHint())
-            self.list_widget.addItem(item)
-            self.list_widget.setItemWidget(item, widget)
-
 class GifOnTop(QWidget):
-    RESIZE_MARGIN = 8
-
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
@@ -122,14 +39,17 @@ class GifOnTop(QWidget):
         self.original_size: Optional[QSize] = None
 
         self.drag_position = None
+        self.is_locked = False
 
         self.resize(300, 300)
-        self.load_last_gif()
+
+        # Load lần mở app đầu tiên, dùng cài đặt nếu có
+        self.load_last_gif(reset_default=False)
+
         self.show()
         if not self.current_gif_path:
             self.show_menu_at_center()
 
-        # Xác định thư mục chứa .exe hoặc source (hỗ trợ khi đóng gói PyInstaller)
         base_dir = Path(getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))))
         icon_path = base_dir / "app_icon.ico"
 
@@ -151,8 +71,45 @@ class GifOnTop(QWidget):
         self.tray_icon.activated.connect(self.on_tray_icon_activated)
         self.tray_icon.show()
 
+    def save_settings(self, width: int, height: int, opacity: float):
+        try:
+            with open(CONFIG_SETTINGS_FILE, "w", encoding="utf-8") as f:
+                f.write(f"{width}\n{height}\n{opacity}\n")
+        except Exception as e:
+            print(f"Error saving settings: {e}")
+
+    def load_settings(self):
+        if CONFIG_SETTINGS_FILE.exists():
+            try:
+                with open(CONFIG_SETTINGS_FILE, "r", encoding="utf-8") as f:
+                    lines = f.read().splitlines()
+                    if len(lines) >= 3:
+                        w = int(lines[0])
+                        h = int(lines[1])
+                        o = float(lines[2])
+                        return w, h, o
+            except Exception as e:
+                print(f"Error loading settings: {e}")
+        return None
+
+    def reset_to_default(self):
+        if self.original_size:
+            orig_w = self.original_size.width()
+            orig_h = self.original_size.height()
+        else:
+            orig_w = 300
+            orig_h = 300
+        self.resize(orig_w, orig_h)
+        if self.movie:
+            self.movie.setScaledSize(QSize(orig_w, orig_h))
+        self.setWindowOpacity(1.0)
+        self.save_settings(orig_w, orig_h, 1.0)
+
     def create_menu(self):
         menu = QMenu(self)
+        if self.is_locked:
+            unlock_action = menu.addAction("Mở khóa")
+            return menu
         change_menu = menu.addMenu("Thay đổi ảnh GIF")
         self.action_change_new = change_menu.addAction("Ảnh GIF mới")
         self.action_change_saved = change_menu.addAction("Ảnh GIF đã lưu")
@@ -167,16 +124,25 @@ class GifOnTop(QWidget):
 
         menu.addSeparator()
 
-        self.action_manage = menu.addAction("Quản lí ảnh đã lưu")
         self.action_save = menu.addAction("Lưu ảnh GIF")
 
         close_menu = menu.addMenu("Đóng ảnh GIF (Thoát ứng dụng)")
         self.action_close_quit = close_menu.addAction("Đóng hẳn app")
         self.action_close_minimize = close_menu.addAction("Thu nhỏ vào khay hệ thống")
 
+        menu.addSeparator()
+
+        self.action_lock = menu.addAction("Khóa cửa sổ")
+
         return menu
 
     def handle_menu_action(self, action):
+        if self.is_locked:
+            if action.text() == "Mở khóa":
+                self.is_locked = False
+                self.tray_icon.showMessage("GIF Overlay", "Đã mở khóa cửa sổ.", QSystemTrayIcon.Information, 2000)
+            return
+
         if action == self.action_change_new:
             self.open_file_dialog()
         elif action == self.action_change_saved:
@@ -185,8 +151,6 @@ class GifOnTop(QWidget):
             self.open_resize_opacity_dialog()
         elif action == self.action_toggle_pause:
             self.toggle_pause_gif()
-        elif action == self.action_manage:
-            self.open_saved_folder()
         elif action == self.action_save:
             self.save_gif_to_documents()
         elif action == self.action_close_quit:
@@ -203,6 +167,9 @@ class GifOnTop(QWidget):
                 QSystemTrayIcon.Information,
                 2000
             )
+        elif action == self.action_lock:
+            self.is_locked = True
+            self.tray_icon.showMessage("GIF Overlay", "Đã khóa cửa sổ. Không thể kéo thả.", QSystemTrayIcon.Information, 2000)
 
     def contextMenuEvent(self, event):
         menu = self.create_menu()
@@ -220,16 +187,29 @@ class GifOnTop(QWidget):
     def open_file_dialog(self):
         path, _ = QFileDialog.getOpenFileName(self, "Select GIF file", "", "GIF Files (*.gif)")
         if path:
-            self.load_gif(path)
+            self.load_gif(path, reset_default=True)
 
-    def load_gif(self, path):
+    def load_gif(self, path, reset_default=False):
         if self.movie:
             self.movie.stop()
         self.movie = QMovie(path)
         self.gif_label.setMovie(self.movie)
         self.movie.start()
         self.original_size = self.movie.currentPixmap().size()
-        self.resize(self.original_size)
+
+        if reset_default:
+            self.reset_to_default()
+        else:
+            settings = self.load_settings()
+            if settings:
+                w, h, o = settings
+                self.resize(w, h)
+                if self.movie:
+                    self.movie.setScaledSize(QSize(w, h))
+                self.setWindowOpacity(o)
+            else:
+                self.resize(self.original_size)
+
         self.current_gif_path = path
         self.save_last_gif(path)
 
@@ -240,13 +220,13 @@ class GifOnTop(QWidget):
         except Exception as e:
             print(f"Error saving last gif path: {e}")
 
-    def load_last_gif(self):
+    def load_last_gif(self, reset_default=False):
         if CONFIG_FILE.exists():
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     path = f.read().strip()
                     if os.path.exists(path):
-                        self.load_gif(path)
+                        self.load_gif(path, reset_default=reset_default)
             except Exception as e:
                 print(f"Error loading last gif path: {e}")
 
@@ -256,7 +236,7 @@ class GifOnTop(QWidget):
             return
         path, _ = QFileDialog.getOpenFileName(self, "Chọn ảnh GIF đã lưu", str(GIF_SAVE_DIR), "GIF Files (*.gif)")
         if path:
-            self.load_gif(path)
+            self.load_gif(path, reset_default=True)
 
     def save_gif_to_documents(self):
         if not self.current_gif_path or not os.path.exists(self.current_gif_path):
@@ -275,10 +255,6 @@ class GifOnTop(QWidget):
                 QMessageBox.information(self, "Lưu ảnh GIF", f"Đã lưu ảnh GIF vào:\n{dest}")
             except Exception as e:
                 QMessageBox.critical(self, "Lỗi", f"Lỗi khi lưu ảnh GIF:\n{e}")
-
-    def open_saved_folder(self):
-        dlg = GifManagerDialog(self)
-        dlg.exec_()
 
     def toggle_pause_gif(self):
         if not self.movie:
@@ -305,23 +281,67 @@ class GifOnTop(QWidget):
         slider_h.setMaximum(2000)
         slider_h.setValue(self.height())
 
+        label_scale = QLabel("Tỉ lệ phóng to: 100%")
+        slider_scale = QSlider(Qt.Horizontal)
+        slider_scale.setMinimum(10)
+        slider_scale.setMaximum(300)
+        slider_scale.setValue(100)
+
         label_o = QLabel(f"Độ mờ: {int(self.windowOpacity()*100)}%")
         slider_o = QSlider(Qt.Horizontal)
         slider_o.setMinimum(10)
         slider_o.setMaximum(100)
         slider_o.setValue(int(self.windowOpacity()*100))
 
+        if self.original_size:
+            orig_w = self.original_size.width()
+            orig_h = self.original_size.height()
+        else:
+            orig_w = self.width()
+            orig_h = self.height()
+
+        updating = [False]
+
+        def on_slider_released():
+            self.save_settings(self.width(), self.height(), self.windowOpacity())
+
         def update_width(value):
+            if updating[0]:
+                return
+            updating[0] = True
             label_w.setText(f"Chiều rộng: {value}")
             self.resize(value, self.height())
             if self.movie:
                 self.movie.setScaledSize(QSize(value, self.height()))
+            scale_w = int(value / orig_w * 100)
+            slider_scale.setValue(scale_w)
+            updating[0] = False
 
         def update_height(value):
+            if updating[0]:
+                return
+            updating[0] = True
             label_h.setText(f"Chiều cao: {value}")
             self.resize(self.width(), value)
             if self.movie:
                 self.movie.setScaledSize(QSize(self.width(), value))
+            scale_h = int(value / orig_h * 100)
+            slider_scale.setValue(scale_h)
+            updating[0] = False
+
+        def update_scale(value):
+            if updating[0]:
+                return
+            updating[0] = True
+            label_scale.setText(f"Tỉ lệ phóng to: {value}%")
+            new_w = int(orig_w * value / 100)
+            new_h = int(orig_h * value / 100)
+            self.resize(new_w, new_h)
+            if self.movie:
+                self.movie.setScaledSize(QSize(new_w, new_h))
+            slider_w.setValue(new_w)
+            slider_h.setValue(new_h)
+            updating[0] = False
 
         def update_opacity(value):
             label_o.setText(f"Độ mờ: {value}%")
@@ -329,32 +349,40 @@ class GifOnTop(QWidget):
 
         slider_w.valueChanged.connect(update_width)
         slider_h.valueChanged.connect(update_height)
+        slider_scale.valueChanged.connect(update_scale)
         slider_o.valueChanged.connect(update_opacity)
+
+        slider_w.sliderReleased.connect(on_slider_released)
+        slider_h.sliderReleased.connect(on_slider_released)
+        slider_scale.sliderReleased.connect(on_slider_released)
+        slider_o.sliderReleased.connect(lambda: self.save_settings(self.width(), self.height(), self.windowOpacity()))
 
         layout.addWidget(label_w, 0, 0)
         layout.addWidget(slider_w, 0, 1)
         layout.addWidget(label_h, 1, 0)
         layout.addWidget(slider_h, 1, 1)
-        layout.addWidget(label_o, 2, 0)
-        layout.addWidget(slider_o, 2, 1)
+        layout.addWidget(label_scale, 2, 0)
+        layout.addWidget(slider_scale, 2, 1)
+        layout.addWidget(label_o, 3, 0)
+        layout.addWidget(slider_o, 3, 1)
 
         btn_reset = QPushButton("Phục hồi mặc định")
         def reset_defaults():
-            if self.original_size:
-                ow, oh = self.original_size.width(), self.original_size.height()
-                slider_w.setValue(ow)
-                slider_h.setValue(oh)
-                self.resize(self.original_size)
-                if self.movie:
-                    self.movie.setScaledSize(self.original_size)
+            slider_w.setValue(orig_w)
+            slider_h.setValue(orig_h)
+            slider_scale.setValue(100)
+            self.resize(orig_w, orig_h)
+            if self.movie:
+                self.movie.setScaledSize(QSize(orig_w, orig_h))
             slider_o.setValue(100)
             self.setWindowOpacity(1.0)
+            self.save_settings(orig_w, orig_h, 1.0)
         btn_reset.clicked.connect(reset_defaults)
-        layout.addWidget(btn_reset, 3, 0, 1, 2)
+        layout.addWidget(btn_reset, 4, 0, 1, 2)
 
         btn_close = QPushButton("Đóng")
         btn_close.clicked.connect(dialog.accept)
-        layout.addWidget(btn_close, 4, 0, 1, 2)
+        layout.addWidget(btn_close, 5, 0, 1, 2)
 
         dialog.exec_()
 
@@ -401,6 +429,8 @@ class GifOnTop(QWidget):
                 self.activateWindow()
 
     def mousePressEvent(self, event):
+        if self.is_locked:
+            return
         if event.button() == Qt.LeftButton:
             self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
             event.accept()
@@ -408,6 +438,8 @@ class GifOnTop(QWidget):
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        if self.is_locked:
+            return
         if event.buttons() & Qt.LeftButton and self.drag_position:
             self.move(event.globalPos() - self.drag_position)
             event.accept()
