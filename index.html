@@ -232,14 +232,63 @@
     }
     .article ol { padding-left: 20px; margin-bottom: 1em; }
     .article ol li { margin-bottom: 0.8em; font-weight: 600; }
-    footer {
-      border-top: 1px solid #e1e4e8;
-      padding: 20px 24px;
-      text-align: center;
-      color: #586069;
-      font-size: 0.9rem;
-      user-select: none;
+    
+    /* How to use section */
+    .how-to-use {
+      max-width: 700px;
+      margin: 40px auto 60px auto;
+      padding: 24px;
+      background-color: #f9f9f9;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+      color: #24292e;
     }
+    .how-to-use h2 {
+      font-size: 1.8rem;
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+    .how-to-use ol {
+      padding-left: 20px;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #24292e;
+    }
+    .how-to-use ol li {
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+    .how-to-use ol li strong {
+      font-weight: 700;
+    }
+
+    .demo-gallery {
+      max-width: 900px;
+      margin: 32px auto 0 auto;
+      padding: 0 16px 32px 16px;
+    }
+    .gif-row {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .gif-row img {
+      width: 240px;
+      max-width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 3px 16px rgba(0,0,0,0.07);
+      background: #f7f7f7;
+      transition: transform 0.2s;
+    }
+    .gif-row img:hover {
+      transform: scale(1.045) rotate(-1.5deg);
+    }
+    @media (max-width: 800px) {
+      .gif-row { flex-direction: column; align-items: center; gap: 16px; }
+      .gif-row img { width: 90%; }
+    }
+
     @media (max-width: 1024px) {
       .feature-grid { flex-wrap: wrap; gap: 24px; }
       .feature-item { min-width: 180px; }
@@ -256,33 +305,6 @@
       .feature-grid { flex-direction: column; gap: 12px; }
       .feature-item { flex: 1 1 100%; min-width: unset; }
     }
-	.demo-gallery {
-  max-width: 900px;
-  margin: 32px auto 0 auto;
-  padding: 0 16px 32px 16px;
-}
-.gif-row {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.gif-row img {
-  width: 240px;
-  max-width: 100%;
-  border-radius: 12px;
-  box-shadow: 0 3px 16px rgba(0,0,0,0.07);
-  background: #f7f7f7;
-  transition: transform 0.2s;
-}
-.gif-row img:hover {
-  transform: scale(1.045) rotate(-1.5deg);
-}
-@media (max-width: 800px) {
-  .gif-row { flex-direction: column; align-items: center; gap: 16px; }
-  .gif-row img { width: 90%; }
-}
-
   </style>
 </head>
 <body>
@@ -331,15 +353,29 @@
         <p id="feature4-desc">Save GIF images and easily reopen, minimize to system tray.</p>
       </div>
     </section>
-  
-  <section class="demo-gallery" aria-label="GIF Overlay Demo">
-  <h2 style="text-align:center; font-size:1.2rem; margin-bottom:20px; color:#24292e">GIF Overlay in Action</h2>
-  <div class="gif-row">
-    <img src="demo1.gif" alt="Demo GIF 1" />
-    <img src="demo2.gif" alt="Demo GIF 2" />
-    <img src="demo3.gif" alt="Demo GIF 3" />
-  </div>
-</section>
+
+    <section class="demo-gallery" aria-label="GIF Overlay Demo">
+      <h2 style="text-align:center; font-size:1.2rem; margin-bottom:20px; color:#24292e">GIF Overlay in Action</h2>
+      <div class="gif-row">
+        <img src="demo1.gif" alt="Demo GIF 1" />
+        <img src="demo2.gif" alt="Demo GIF 2" />
+        <img src="demo3.gif" alt="Demo GIF 3" />
+      </div>
+    </section>
+	
+    <!-- Phần Hướng dẫn sử dụng -->
+    <section class="how-to-use" aria-label="How to use GIF Overlay">
+      <h2 id="howto-title">How to Use GIF Overlay</h2>
+      <ol id="howto-list">
+        <li><strong id="howto-step1-title">Download & Install:</strong> <span id="howto-step1-desc">Click "Download Now" to get the installer, then run it on your Windows PC.</span></li>
+        <li><strong id="howto-step2-title">Open the App:</strong> <span id="howto-step2-desc">Launch GIF Overlay from the Start menu or desktop shortcut.</span></li>
+        <li><strong id="howto-step3-title">Select GIF:</strong> <span id="howto-step3-desc">Right-click the floating window and choose "Change GIF" to open a GIF or image file.</span></li>
+        <li><strong id="howto-step4-title">Customize:</strong> <span id="howto-step4-desc">Use the context menu to resize, adjust opacity, pause/play, lock position, or save GIFs.</span></li>
+        <li><strong id="howto-step5-title">Save & Reuse:</strong> <span id="howto-step5-desc">Save your favorite GIFs and easily reload them later via the menu.</span></li>
+      </ol>
+    </section>
+
+    
 
     <section class="article" aria-label="About GIF Overlay">
       <time datetime="2025-06-07" id="publish-date">Published: June 7, 2025</time>
@@ -373,7 +409,18 @@
         aboutTitle: "Giới thiệu về GIF Overlay",
         aboutP1: "<strong>GIF Overlay</strong> là ứng dụng giúp bạn hiển thị ảnh GIF nổi trên màn hình Windows, với nhiều tính năng tiện lợi giúp cá nhân hóa trải nghiệm làm việc và giải trí.",
         aboutP2: "Ứng dụng được phát triển nhằm mục đích đơn giản, nhẹ nhàng, dễ sử dụng và có khả năng tùy chỉnh đa dạng: thay đổi kích thước, độ mờ, vị trí lưu, khóa cửa sổ không cho di chuyển, tạm dừng hoặc phát GIF theo ý muốn, cũng như lưu ảnh GIF và sử dụng lại dễ dàng.",
-        aboutP3: "Với GIF Overlay, bạn có thể làm cho màn hình trở nên sinh động và cá tính hơn mà không ảnh hưởng đến hiệu năng hệ thống."
+        aboutP3: "Với GIF Overlay, bạn có thể làm cho màn hình trở nên sinh động và cá tính hơn mà không ảnh hưởng đến hiệu năng hệ thống.",
+        howtoTitle: "Hướng dẫn sử dụng GIF Overlay",
+        howtoStep1Title: "Tải & Cài đặt:",
+        howtoStep1Desc: "Nhấn nút \"Tải Ngay\" để tải bộ cài, sau đó chạy trên máy tính Windows của bạn.",
+        howtoStep2Title: "Mở ứng dụng:",
+        howtoStep2Desc: "Khởi động GIF Overlay từ menu Start hoặc shortcut ngoài desktop.",
+        howtoStep3Title: "Chọn GIF:",
+        howtoStep3Desc: "Nhấp chuột phải vào cửa sổ nổi và chọn \"Thay đổi ảnh/GIF\" để mở file GIF hoặc ảnh.",
+        howtoStep4Title: "Tùy chỉnh:",
+        howtoStep4Desc: "Dùng menu ngữ cảnh để thay đổi kích thước, độ mờ, tạm dừng/phát, khóa vị trí, hoặc lưu ảnh GIF.",
+        howtoStep5Title: "Lưu & Tải lại:",
+        howtoStep5Desc: "Lưu các GIF yêu thích và dễ dàng tải lại khi cần qua menu."
       },
       en: {
         title: "GIF Overlay - Floating GIF Display Application",
@@ -392,7 +439,18 @@
         aboutTitle: "About GIF Overlay",
         aboutP1: "<strong>GIF Overlay</strong> is an application that helps you display floating GIFs on Windows screen, with many useful features to personalize your work and entertainment experience.",
         aboutP2: "The app is developed to be simple, lightweight, easy to use, and supports versatile customization: resize, opacity, save position, lock window, pause/play GIF, and easy reuse.",
-        aboutP3: "With GIF Overlay, you can make your screen more lively and personal without affecting system performance."
+        aboutP3: "With GIF Overlay, you can make your screen more lively and personal without affecting system performance.",
+        howtoTitle: "How to Use GIF Overlay",
+        howtoStep1Title: "Download & Install:",
+        howtoStep1Desc: "Click \"Download Now\" to get the installer, then run it on your Windows PC.",
+        howtoStep2Title: "Open the App:",
+        howtoStep2Desc: "Launch GIF Overlay from the Start menu or desktop shortcut.",
+        howtoStep3Title: "Select GIF:",
+        howtoStep3Desc: "Right-click the floating window and choose \"Change GIF\" to open a GIF or image file.",
+        howtoStep4Title: "Customize:",
+        howtoStep4Desc: "Use the context menu to resize, adjust opacity, pause/play, lock position, or save GIFs.",
+        howtoStep5Title: "Save & Reuse:",
+        howtoStep5Desc: "Save your favorite GIFs and easily reload them later via the menu."
       }
     };
 
@@ -416,6 +474,19 @@
       document.getElementById("about-p1").innerHTML = data.aboutP1;
       document.getElementById("about-p2").textContent = data.aboutP2;
       document.getElementById("about-p3").textContent = data.aboutP3;
+
+      // Hướng dẫn sử dụng
+      document.getElementById("howto-title").textContent = data.howtoTitle;
+      document.getElementById("howto-step1-title").textContent = data.howtoStep1Title;
+      document.getElementById("howto-step1-desc").textContent = data.howtoStep1Desc;
+      document.getElementById("howto-step2-title").textContent = data.howtoStep2Title;
+      document.getElementById("howto-step2-desc").textContent = data.howtoStep2Desc;
+      document.getElementById("howto-step3-title").textContent = data.howtoStep3Title;
+      document.getElementById("howto-step3-desc").textContent = data.howtoStep3Desc;
+      document.getElementById("howto-step4-title").textContent = data.howtoStep4Title;
+      document.getElementById("howto-step4-desc").textContent = data.howtoStep4Desc;
+      document.getElementById("howto-step5-title").textContent = data.howtoStep5Title;
+      document.getElementById("howto-step5-desc").textContent = data.howtoStep5Desc;
     }
 
     // Set default language to English
